@@ -9,14 +9,12 @@ from will.models import AccountUser, Course, AttendingCourse
 from will.signals import check_nim
 from will.forms import StudentRegisterForm
 
-
 # Create your views here.
-def home(request): 
-    #fungsi (def) nama fungsinya(home)    
+def home(request):
     return render(request, 'home.html')
 
 def readCourse(request):
-    data = Course.objects.all()[:1] #limit data (1 pcs)    
+    data = Course.objects.all()[:1]  # limit data (1 pcs)
     context = {'data_list': data}
     return render(request, 'course.html', context)
 
@@ -42,70 +40,52 @@ def deleteCourse(request):
     except:
         return redirect('will:read-data-course')
 
-
 def readStudent(request):
     data = AccountUser.objects.all()
-
     context = {'data_list': data}
-
     return render(request, 'index.html', context)
-
 
 @csrf_protect
 def createStudent(request):
     if request.method == 'POST':
-        form = StudentRegisterForm(request.POST)
-        if form.is_valid():
+        forms = StudentRegisterForm(request.POST)
+        if forms.is_valid():
             post_save.disconnect(check_nim)
-            form.fullname = form.cleaned_data.get("fullname")
-            form.nim = form.cleaned_data.get("nim")
-            form.email = form.cleaned_data.get("email")
+            forms.fullname = forms.cleaned_data.get("fullname")
+            forms.nim = forms.cleaned_data.get("nim")
+            forms.email = forms.cleaned_data.get("email")
             post_save.send(
-                sender=AccountUser, created=None,                
-                instance=form,                
-                dispatch_uid="check_nim")
+                sender=AccountUser,
+                created=None,
+                instance=forms,
+                dispatch_uid="check_nim"
+            )
             messages.success(request, 'Data Berhasil disimpan')
             return redirect('will:read-data-student')
     else:
-        form = StudentRegisterForm()
-
-    return render(request, 'form.html', {'form': form})
-
+        forms = StudentRegisterForm()
+    return render(request, 'form.html', {'forms': forms})
 
 @csrf_protect
 def updateStudent(request, id):
-    #Create Your Task Here...
-    member = AccountUser.objects.get(account_user_related_user=id)
-    user = User.objects.get(username=id)
+    forms_update = AccountUser.objects.get(account_user_related_user=id)
     if request.method == 'POST':
-        form = StudentRegisterForm(request.POST)
-        if form.is_valid():
-            print(form.cleaned_data)
-            account_user_student_number = form.cleaned_data.get("nim")
-            email = form.cleaned_data.get("email")
-
-            if account_user_student_number:
-                member.account_user_student_number = account_user_student_number
-            else:
-                messages.error(request, 'Account user student number is required')
-                return render(request, 'form.html', {'form': form})
-
-            user.email = email
-            member.save()
-            user.save()
+        forms = StudentRegisterForm(request.POST)
+        if forms.is_valid():
+            forms_update.account_user_fullname = forms.cleaned_data.get("fullname")
+            forms_update.account_user_student_number = forms.cleaned_data.get("nim")
+            forms_update.account_user_related_user = forms.cleaned_data.get("email")
+            forms_update.account_user_updated_by = request.user.username
+            forms_update.save()
             messages.success(request, 'Data Berhasil diupdate')
             return redirect('will:read-data-student')
-        else:
-            print(form.errors)
     else:
-        initial_data = {
-            'fullname': user.first_name + '' + user.last_name,
-            'nim': member.account_user_student_number,
-            'email': user.email,
-        }
-        form = StudentRegisterForm(initial=initial_data)
-    return render(request, 'form.html', {'form': form})
-
+        forms = StudentRegisterForm(initial={
+            'fullname': forms_update.account_user_fullname,
+            'nim': forms_update.account_user_student_number,
+            'email': forms_update.account_user_related_user,
+        })
+    return render(request, 'form.html', {'forms': forms})
 
 @csrf_protect
 def deleteStudent(request, id):
